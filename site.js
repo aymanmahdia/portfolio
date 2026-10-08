@@ -66,7 +66,7 @@
   function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
 
   var ctx, bg, W = 0, H = 0, dpr = 1, blue = '#1D4A9E', navy = '#0F2A52', small = false;
-  var floaters = [], rain = [], ripples = [], raf = 0, visible = true, lastSpawn = 0, lastPointer = 0;
+  var rain = [], ripples = [], raf = 0, visible = true, lastSpawn = 0, lastPointer = 0;
 
   function dropPath(c, sz) {
     c.beginPath();
@@ -124,16 +124,6 @@
     blue = cs.getPropertyValue('--blue').trim() || '#1D4A9E';
     navy = cs.getPropertyValue('--navy').trim() || '#0F2A52';
     buildStatic();
-    /* floating drops: same layout every load, they bob gently */
-    var rand = rng(20251108), count = small ? 20 : 42;
-    floaters = [];
-    for (var q = 0; q < count; q++) {
-      var px = rand(), py = rand();
-      if (!small && px < 0.45 && rand() < 0.7) px = 0.45 + rand() * 0.55;
-      floaters.push({ x: px * W, y: py * H, sz: 4 + rand() * 12, tilt: (rand() - 0.5) * 0.5,
-        a: 0.07 + rand() * 0.12, phase: rand() * 6.28, amp: 2 + rand() * 4, speed: 0.6 + rand() * 0.8,
-        dark: q % 5 === 0, ring: q % 3 === 0 });
-    }
     rain = [];
     ripples = [];
     /* a few ripples already spreading so the first frame is never empty */
@@ -175,16 +165,6 @@
         ctx.beginPath(); ctx.ellipse(rp.x, rp.y, rad, rad * 0.38, 0, 0, Math.PI * 2); ctx.stroke();
       }
     }
-
-    /* floating drops bobbing on the surface */
-    floaters.forEach(function (f) {
-      var dy = Math.sin(t * f.speed + f.phase) * f.amp;
-      ctx.save(); ctx.translate(f.x, f.y + dy); ctx.rotate(f.tilt + Math.sin(t * 0.5 + f.phase) * 0.06);
-      dropPath(ctx, f.sz);
-      ctx.globalAlpha = f.a; ctx.fillStyle = f.dark ? navy : blue; ctx.fill();
-      if (f.ring) { ctx.globalAlpha = 0.25; ctx.strokeStyle = blue; ctx.lineWidth = 1; ctx.stroke(); }
-      ctx.restore();
-    });
 
     /* falling rain: a short streak with a drop head; splashes into a ripple */
     for (i = rain.length - 1; i >= 0; i--) {
