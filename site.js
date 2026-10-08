@@ -59,14 +59,27 @@
     img.addEventListener('error', function () { img.remove(); });
   });
 
-  /* ---------- hero background: hill contours + live water (rain, ripples, floating drops) ---------- */
+  /* ---------- hero background: flowing water lines + gentle rain and ripples ---------- */
   var cv = document.getElementById('flow');
   var hero = cv ? cv.closest('.hero') : null;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-  function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
 
-  var ctx, bg, W = 0, H = 0, dpr = 1, blue = '#1D4A9E', navy = '#0F2A52', small = false;
+  var ctx, W = 0, H = 0, dpr = 1, blue = '#1D4A9E', navy = '#0F2A52', small = false;
   var rain = [], ripples = [], raf = 0, visible = true, lastSpawn = 0, lastPointer = 0;
+
+  /* two currents of thin lines, each line a little out of step with the next, so the band ripples like water */
+  var CURRENTS = [
+    { y: 0.30, spread: 0.26, lines: 15, amp: 26, k1: 0.0042, k2: 0.0093, s1: 0.22, s2: 0.13, alpha: 0.16, dark: false },
+    { y: 0.74, spread: 0.30, lines: 13, amp: 34, k1: 0.0031, k2: 0.0078, s1: -0.18, s2: 0.11, alpha: 0.13, dark: true }
+  ];
+  function surfaceY(cur, i, x, t) {
+    var f = i / (cur.lines - 1);
+    var base = H * (cur.y - cur.spread / 2 + cur.spread * f);
+    var a = cur.amp * (0.55 + 0.45 * Math.sin(f * Math.PI));
+    return base
+      + a * Math.sin(x * cur.k1 + t * cur.s1 + f * 1.6)
+      + a * 0.45 * Math.sin(x * cur.k2 - t * cur.s2 + f * 2.4);
+  }
 
   function dropPath(c, sz) {
     c.beginPath();
@@ -75,41 +88,6 @@
     c.arc(0, sz * 0.35, sz, 0, Math.PI, false);
     c.bezierCurveTo(-sz, -sz * 0.1, -sz * 0.35, -sz * 0.75, 0, -sz * 1.45);
     c.closePath();
-  }
-
-  /* static layer: terrain contours, drawn once per size/theme into an offscreen canvas */
-  function buildStatic() {
-    bg = document.createElement('canvas');
-    bg.width = cv.width; bg.height = cv.height;
-    var c = bg.getContext('2d');
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    function g(x, y, cx, cy, s) { return Math.exp(-((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (2 * s * s)); }
-    function h(x, y) {
-      return g(x, y, W * 0.84, H * 0.30, Math.max(W * 0.15, 140))
-        + 0.75 * g(x, y, W * 0.60, H * 0.92, Math.max(W * 0.12, 120))
-        + 0.6 * g(x, y, W * 1.03, H * 0.95, Math.max(W * 0.10, 110))
-        + 0.45 * g(x, y, W * 0.06, H * 0.10, Math.max(W * 0.10, 110))
-        + 0.07 * Math.sin(x / 60) * Math.cos(y / 48);
-    }
-    var step = small ? 10 : 7, cols = Math.ceil(W / step) + 1, rows = Math.ceil(H / step) + 1, grid = [], i, j;
-    for (j = 0; j < rows; j++) { grid[j] = []; for (i = 0; i < cols; i++) grid[j][i] = h(i * step, j * step); }
-    for (var k = 1; k <= 16; k++) {
-      var lv = k * 0.075;
-      c.strokeStyle = k % 4 === 0 ? navy : blue;
-      c.globalAlpha = (k % 4 === 0 ? 0.20 : 0.10) + 0.006 * k;
-      c.lineWidth = k % 4 === 0 ? 1.3 : 0.9;
-      c.beginPath();
-      for (j = 0; j < rows - 1; j++) for (i = 0; i < cols - 1; i++) {
-        var a = grid[j][i], b = grid[j][i + 1], d = grid[j + 1][i + 1], e = grid[j + 1][i], x = i * step, y = j * step, p = [];
-        if ((a < lv) !== (b < lv)) p.push([x + step * (lv - a) / (b - a), y]);
-        if ((b < lv) !== (d < lv)) p.push([x + step, y + step * (lv - b) / (d - b)]);
-        if ((e < lv) !== (d < lv)) p.push([x + step * (lv - e) / (d - e), y + step]);
-        if ((a < lv) !== (e < lv)) p.push([x, y + step * (lv - a) / (e - a)]);
-        if (p.length >= 2) { c.moveTo(p[0][0], p[0][1]); c.lineTo(p[1][0], p[1][1]); }
-        if (p.length === 4) { c.moveTo(p[2][0], p[2][1]); c.lineTo(p[3][0], p[3][1]); }
-      }
-      c.stroke();
-    }
   }
 
   function setup() {
@@ -123,54 +101,62 @@
     var cs = getComputedStyle(root);
     blue = cs.getPropertyValue('--blue').trim() || '#1D4A9E';
     navy = cs.getPropertyValue('--navy').trim() || '#0F2A52';
-    buildStatic();
-    rain = [];
-    ripples = [];
-    /* a few ripples already spreading so the first frame is never empty */
-    [[0.92, 0.70], [0.55, 0.18], [0.30, 0.86], [0.98, 0.12]].forEach(function (p, n) {
-      addRipple(p[0] * W, p[1] * H, 70 + n * 8, n * 0.22);
-    });
+    rain = []; ripples = [];
     return true;
   }
 
   function addRipple(x, y, max, startAge) {
-    ripples.push({ x: x, y: y, max: max || 60 + Math.random() * 40, age: startAge || 0, life: 4.2 + Math.random() * 1.2 });
+    ripples.push({ x: x, y: y, max: max || 50 + Math.random() * 30, age: startAge || 0, life: 4.2 + Math.random() * 1.2 });
   }
-  function addRain() {
-    var x = (small ? Math.random() : 0.4 + Math.random() * 0.6) * W;
-    var land = H * (0.25 + Math.random() * 0.7);
-    rain.push({ x: x, y: -20, land: land, v: 70 + Math.random() * 40, sz: 2.5 + Math.random() * 2 });
+  function addRain(t) {
+    var x = (small ? 0.1 + Math.random() * 0.85 : 0.42 + Math.random() * 0.56) * W;
+    var cur = CURRENTS[Math.random() < 0.5 ? 0 : 1];
+    var land = surfaceY(cur, Math.floor(Math.random() * cur.lines), x, t + 2);
+    rain.push({ x: x, y: -16, land: Math.max(40, land), v: 70 + Math.random() * 40, sz: 2.5 + Math.random() * 2 });
   }
 
   function render(dt, t) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    ctx.globalAlpha = 1;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(bg, 0, 0);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var step = small ? 10 : 8;
 
-    /* ripples: three rings per splash, spreading and fading */
-    for (var i = ripples.length - 1; i >= 0; i--) {
-      var rp = ripples[i];
+    /* flowing lines */
+    CURRENTS.forEach(function (cur) {
+      ctx.strokeStyle = cur.dark ? navy : blue;
+      for (var i = 0; i < cur.lines; i++) {
+        var f = i / (cur.lines - 1);
+        ctx.globalAlpha = cur.alpha * (0.45 + 0.55 * Math.sin(f * Math.PI));
+        ctx.lineWidth = i % 4 === 0 ? 1.3 : 0.8;
+        ctx.beginPath();
+        for (var x = -step; x <= W + step; x += step) {
+          var y = surfaceY(cur, i, x, t);
+          if (x === -step) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    });
+
+    /* ripples */
+    for (var j = ripples.length - 1; j >= 0; j--) {
+      var rp = ripples[j];
       rp.age += dt;
       var k = rp.age / rp.life;
-      if (k >= 1) { ripples.splice(i, 1); continue; }
+      if (k >= 1) { ripples.splice(j, 1); continue; }
       for (var n = 0; n < 3; n++) {
         var kk = k - n * 0.12;
         if (kk <= 0) continue;
         var rad = rp.max * (1 - Math.pow(1 - kk, 2.2));
-        ctx.globalAlpha = Math.max(0, 0.22 * (1 - kk)) * (1 - n * 0.25);
-        ctx.strokeStyle = blue; ctx.lineWidth = 1.4 - n * 0.3;
-        ctx.beginPath(); ctx.ellipse(rp.x, rp.y, rad, rad * 0.38, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = Math.max(0, 0.24 * (1 - kk)) * (1 - n * 0.25);
+        ctx.strokeStyle = blue; ctx.lineWidth = 1.3 - n * 0.3;
+        ctx.beginPath(); ctx.ellipse(rp.x, rp.y, rad, rad * 0.36, 0, 0, Math.PI * 2); ctx.stroke();
       }
     }
 
-    /* falling rain: a short streak with a drop head; splashes into a ripple */
-    for (i = rain.length - 1; i >= 0; i--) {
-      var d = rain[i];
+    /* rain */
+    for (j = rain.length - 1; j >= 0; j--) {
+      var d = rain[j];
       d.y += d.v * dt;
-      if (d.y >= d.land) { addRipple(d.x, d.land); rain.splice(i, 1); continue; }
+      if (d.y >= d.land) { addRipple(d.x, d.land); rain.splice(j, 1); continue; }
       var g = ctx.createLinearGradient(d.x, d.y - 14, d.x, d.y);
       g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, blue);
       ctx.globalAlpha = 0.28; ctx.strokeStyle = g; ctx.lineWidth = 1.1;
@@ -181,14 +167,14 @@
     ctx.globalAlpha = 1;
   }
 
-  var last = 0;
+  var last = 0, clock = 0;
   function frame(now) {
     raf = 0;
     if (!visible || document.hidden) return;
     var t = now / 1000, dt = last ? Math.min(t - last, 0.05) : 0.016;
-    last = t;
-    if (now - lastSpawn > (small ? 3400 : 2400) + Math.random() * 600) { lastSpawn = now; addRain(); }
-    render(dt, t);
+    last = t; clock += dt;
+    if (now - lastSpawn > (small ? 3400 : 2400) + Math.random() * 600) { lastSpawn = now; addRain(clock); }
+    render(dt, clock);
     raf = requestAnimationFrame(frame);
   }
   function start() { if (!raf && !reduce.matches && visible && !document.hidden) { last = 0; raf = requestAnimationFrame(frame); } }
@@ -197,9 +183,8 @@
   function init() {
     stop();
     if (!setup()) return;
-    if (reduce.matches) { render(0, 0); return; }   /* still picture for reduced motion */
-    render(0, 0);
-    start();
+    render(0, clock);
+    if (!reduce.matches) start();   /* reduced motion: one still frame */
   }
   function drawHero() { init(); }
 
@@ -208,23 +193,21 @@
     var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(init, 150); });
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', init);
     reduce.addEventListener('change', init);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(init);
     document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else start(); });
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (es) { visible = es[0].isIntersecting; if (visible) start(); else stop(); }).observe(hero);
     }
-    /* touch the water: moving the pointer or clicking sends out ripples */
     hero.addEventListener('pointermove', function (e) {
       if (reduce.matches || e.timeStamp - lastPointer < 420) return;
       lastPointer = e.timeStamp;
       var r = cv.getBoundingClientRect();
-      addRipple(e.clientX - r.left, e.clientY - r.top, 26 + Math.random() * 14);
+      addRipple(e.clientX - r.left, e.clientY - r.top, 24 + Math.random() * 12);
     });
     hero.addEventListener('pointerdown', function (e) {
       if (reduce.matches) return;
       var r = cv.getBoundingClientRect();
-      addRipple(e.clientX - r.left, e.clientY - r.top, 90);
-      addRipple(e.clientX - r.left, e.clientY - r.top, 55, 0.3);
+      addRipple(e.clientX - r.left, e.clientY - r.top, 80);
+      addRipple(e.clientX - r.left, e.clientY - r.top, 50, 0.3);
     });
   }
 })();
