@@ -134,12 +134,12 @@
   }
 
   function addRipple(x, y, max, startAge) {
-    ripples.push({ x: x, y: y, max: max || 60 + Math.random() * 40, age: startAge || 0, life: 2.6 + Math.random() * 0.8 });
+    ripples.push({ x: x, y: y, max: max || 60 + Math.random() * 40, age: startAge || 0, life: 4.2 + Math.random() * 1.2 });
   }
   function addRain() {
     var x = (small ? Math.random() : 0.4 + Math.random() * 0.6) * W;
     var land = H * (0.25 + Math.random() * 0.7);
-    rain.push({ x: x, y: -20, land: land, v: 260 + Math.random() * 180, sz: 3 + Math.random() * 3 });
+    rain.push({ x: x, y: -20, land: land, v: 70 + Math.random() * 40, sz: 2.5 + Math.random() * 2 });
   }
 
   function render(dt, t) {
@@ -160,7 +160,7 @@
         var kk = k - n * 0.12;
         if (kk <= 0) continue;
         var rad = rp.max * (1 - Math.pow(1 - kk, 2.2));
-        ctx.globalAlpha = Math.max(0, 0.34 * (1 - kk)) * (1 - n * 0.25);
+        ctx.globalAlpha = Math.max(0, 0.22 * (1 - kk)) * (1 - n * 0.25);
         ctx.strokeStyle = blue; ctx.lineWidth = 1.4 - n * 0.3;
         ctx.beginPath(); ctx.ellipse(rp.x, rp.y, rad, rad * 0.38, 0, 0, Math.PI * 2); ctx.stroke();
       }
@@ -171,12 +171,12 @@
       var d = rain[i];
       d.y += d.v * dt;
       if (d.y >= d.land) { addRipple(d.x, d.land); rain.splice(i, 1); continue; }
-      var g = ctx.createLinearGradient(d.x, d.y - 26, d.x, d.y);
+      var g = ctx.createLinearGradient(d.x, d.y - 14, d.x, d.y);
       g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, blue);
-      ctx.globalAlpha = 0.45; ctx.strokeStyle = g; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.moveTo(d.x, d.y - 26); ctx.lineTo(d.x, d.y); ctx.stroke();
+      ctx.globalAlpha = 0.28; ctx.strokeStyle = g; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(d.x, d.y - 14); ctx.lineTo(d.x, d.y); ctx.stroke();
       ctx.save(); ctx.translate(d.x, d.y); dropPath(ctx, d.sz);
-      ctx.globalAlpha = 0.5; ctx.fillStyle = blue; ctx.fill(); ctx.restore();
+      ctx.globalAlpha = 0.35; ctx.fillStyle = blue; ctx.fill(); ctx.restore();
     }
     ctx.globalAlpha = 1;
   }
@@ -187,7 +187,7 @@
     if (!visible || document.hidden) return;
     var t = now / 1000, dt = last ? Math.min(t - last, 0.05) : 0.016;
     last = t;
-    if (now - lastSpawn > (small ? 1100 : 650)) { lastSpawn = now; addRain(); }
+    if (now - lastSpawn > (small ? 3400 : 2400) + Math.random() * 600) { lastSpawn = now; addRain(); }
     render(dt, t);
     raf = requestAnimationFrame(frame);
   }
@@ -215,7 +215,7 @@
     }
     /* touch the water: moving the pointer or clicking sends out ripples */
     hero.addEventListener('pointermove', function (e) {
-      if (reduce.matches || e.timeStamp - lastPointer < 180) return;
+      if (reduce.matches || e.timeStamp - lastPointer < 420) return;
       lastPointer = e.timeStamp;
       var r = cv.getBoundingClientRect();
       addRipple(e.clientX - r.left, e.clientY - r.top, 26 + Math.random() * 14);
