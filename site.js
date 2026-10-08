@@ -107,15 +107,6 @@
       c.stroke();
     }
 
-    /* 2. a stream winding down the valley */
-    c.globalAlpha = 0.35; c.strokeStyle = blue; c.lineWidth = 2.2; c.lineCap = 'round';
-    c.beginPath();
-    c.moveTo(W * 0.66, -10);
-    c.bezierCurveTo(W * 0.72, H * 0.25, W * 0.62, H * 0.42, W * 0.72, H * 0.58);
-    c.bezierCurveTo(W * 0.80, H * 0.72, W * 0.76, H * 0.88, W * 0.86, H + 10);
-    c.stroke();
-    c.globalAlpha = 0.18; c.lineWidth = 6; c.stroke();
-
     /* 3. ripples where drops land */
     var ripples = [[0.92, 0.70, 46], [0.55, 0.18, 34], [0.30, 0.86, 28], [0.98, 0.12, 30]];
     ripples.forEach(function (rp) {
