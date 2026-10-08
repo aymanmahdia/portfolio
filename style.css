@@ -278,6 +278,9 @@ a.honor{text-decoration:none;color:inherit}
 }
 
 [hidden]{display:none!important}
+.honor-thumb.plain{background:radial-gradient(circle at 75% 20%,rgba(255,255,255,.14),transparent 55%),linear-gradient(135deg,#0D2547,#1D4A9E);color:#FFFFFF}
+.honor-thumb.plain svg{position:static;width:46px;height:46px;opacity:.92}
+
 /* multi-page nav */
 .menu > li.has-sub{gap:2px}
 .menu > li > a.active::after{width:100%}
