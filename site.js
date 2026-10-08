@@ -69,8 +69,8 @@
 
   /* two currents of thin lines, each line a little out of step with the next, so the band ripples like water */
   var CURRENTS = [
-    { y: 0.30, spread: 0.26, lines: 15, amp: 26, k1: 0.0042, k2: 0.0093, s1: 0.22, s2: 0.13, alpha: 0.16, dark: false },
-    { y: 0.74, spread: 0.30, lines: 13, amp: 34, k1: 0.0031, k2: 0.0078, s1: -0.18, s2: 0.11, alpha: 0.13, dark: true }
+    { y: 0.30, spread: 0.26, lines: 16, amp: 30, k1: 0.0042, k2: 0.0093, s1: 0.28, s2: 0.16, alpha: 0.38, dark: false },
+    { y: 0.74, spread: 0.30, lines: 14, amp: 38, k1: 0.0031, k2: 0.0078, s1: -0.22, s2: 0.14, alpha: 0.30, dark: true }
   ];
   function surfaceY(cur, i, x, t) {
     var f = i / (cur.lines - 1);
@@ -126,7 +126,7 @@
       for (var i = 0; i < cur.lines; i++) {
         var f = i / (cur.lines - 1);
         ctx.globalAlpha = cur.alpha * (0.45 + 0.55 * Math.sin(f * Math.PI));
-        ctx.lineWidth = i % 4 === 0 ? 1.3 : 0.8;
+        ctx.lineWidth = i % 4 === 0 ? 1.5 : 1;
         ctx.beginPath();
         for (var x = -step; x <= W + step; x += step) {
           var y = surfaceY(cur, i, x, t);
