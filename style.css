@@ -301,10 +301,12 @@ a.honor{text-decoration:none;color:inherit}
 .band-link:hover{border-bottom-color:#FFFFFF}
 @media (max-width:640px){.band-link{margin-left:0}}
 /* hero background */
-.hero{background:
-  radial-gradient(ellipse 55% 60% at 88% 18%, color-mix(in srgb,var(--blue) 13%,transparent), transparent 70%),
-  radial-gradient(ellipse 45% 50% at 8% 95%, color-mix(in srgb,var(--navy) 8%,transparent), transparent 70%),
-  linear-gradient(180deg, var(--bg), color-mix(in srgb,var(--blue) 4%,var(--bg)))}
+.hero{background:var(--bg);border-bottom:1px solid var(--rule)}
+.hero::before{content:"";position:absolute;inset:0;z-index:-2;pointer-events:none;
+  background-image:radial-gradient(circle,color-mix(in srgb,var(--navy) 26%,transparent) 1px,transparent 1.4px);
+  background-size:22px 22px;
+  -webkit-mask-image:radial-gradient(ellipse 65% 85% at 78% 45%,#000 25%,transparent 78%);
+          mask-image:radial-gradient(ellipse 65% 85% at 78% 45%,#000 25%,transparent 78%)}
 #flow{-webkit-mask-image:linear-gradient(100deg,rgba(0,0,0,.45) 0%,rgba(0,0,0,.25) 34%,rgba(0,0,0,.85) 70%,#000 100%);
       mask-image:linear-gradient(100deg,rgba(0,0,0,.45) 0%,rgba(0,0,0,.25) 34%,rgba(0,0,0,.85) 70%,#000 100%)}
 /* honors */
