@@ -59,6 +59,78 @@
     img.addEventListener('error', function () { img.remove(); });
   });
 
+  /* ---------- gallery: filters and full-size viewer ---------- */
+  var gItems = [].slice.call(document.querySelectorAll('.g-item'));
+  if (gItems.length) {
+    var BROKEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>';
+    gItems.forEach(function (fig) {
+      var img = fig.querySelector('img');
+      img.addEventListener('error', function () {
+        var b = fig.querySelector('.g-open'); b.classList.add('broken'); b.disabled = true; b.innerHTML = BROKEN;
+      });
+    });
+
+    document.querySelectorAll('.chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var f = chip.getAttribute('data-filter');
+        document.querySelectorAll('.chip').forEach(function (c) { c.setAttribute('aria-pressed', String(c === chip)); });
+        gItems.forEach(function (fig) { fig.hidden = !(f === 'all' || fig.getAttribute('data-kind') === f); });
+      });
+    });
+
+    var lb = document.getElementById('lightbox'), lbImg = document.getElementById('lbImg');
+    var lbCap = document.getElementById('lbCap'), lbCount = document.getElementById('lbCount'), lbLink = document.getElementById('lbLink');
+    var shown = [], idx = 0, lastFocus = null;
+    function current() { return gItems.filter(function (f) { return !f.hidden && !f.querySelector('.g-open').disabled; }); }
+    function show(i) {
+      idx = (i + shown.length) % shown.length;
+      var fig = shown[idx], btn = fig.querySelector('.g-open'), thumb = fig.querySelector('img');
+      lbImg.src = btn.getAttribute('data-full');
+      lbImg.alt = thumb.alt;
+      lbImg.classList.toggle('flip', fig.classList.contains('flip'));
+      lbCap.textContent = fig.querySelector('.g-title').textContent + ' · ' + fig.querySelector('.g-when').textContent;
+      lbCount.textContent = (idx + 1) + ' of ' + shown.length;
+      lbLink.href = btn.getAttribute('data-view');
+    }
+    function openLb(fig) {
+      shown = current(); if (!shown.length) return;
+      lastFocus = document.activeElement;
+      show(Math.max(0, shown.indexOf(fig)));
+      lb.hidden = false; document.body.style.overflow = 'hidden';
+      lb.querySelector('.lb-close').focus();
+    }
+    function closeLb() {
+      lb.hidden = true; document.body.style.overflow = ''; lbImg.removeAttribute('src');
+      if (lastFocus) lastFocus.focus();
+    }
+    gItems.forEach(function (fig) {
+      fig.querySelector('.g-open').addEventListener('click', function () { openLb(fig); });
+    });
+    lb.querySelector('.lb-close').addEventListener('click', closeLb);
+    lb.querySelector('.lb-prev').addEventListener('click', function () { show(idx - 1); });
+    lb.querySelector('.lb-next').addEventListener('click', function () { show(idx + 1); });
+    lb.addEventListener('click', function (e) { if (e.target === lb) closeLb(); });
+    document.addEventListener('keydown', function (e) {
+      if (lb.hidden) return;
+      if (e.key === 'Escape') closeLb();
+      else if (e.key === 'ArrowLeft') show(idx - 1);
+      else if (e.key === 'ArrowRight') show(idx + 1);
+      else if (e.key === 'Tab') {   /* keep focus inside the viewer */
+        var f = [].slice.call(lb.querySelectorAll('button, a[href]'));
+        var first = f[0], lastEl = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); lastEl.focus(); }
+        else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); first.focus(); }
+      }
+    });
+    var tx = null;
+    lb.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; }, { passive: true });
+    lb.addEventListener('touchend', function (e) {
+      if (tx === null) return;
+      var dx = e.changedTouches[0].clientX - tx; tx = null;
+      if (Math.abs(dx) > 50) show(idx + (dx < 0 ? 1 : -1));
+    });
+  }
+
   /* ---------- hero background: flowing water lines + gentle rain and ripples ---------- */
   var cv = document.getElementById('flow');
   var hero = cv ? cv.closest('.hero') : null;
